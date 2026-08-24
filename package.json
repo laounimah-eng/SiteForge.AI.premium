@@ -1,12 +1,9 @@
 {
   "name": "siteforge-ai",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^5.1.0"
-  }
+  "description": "SiteForge AI — premium lunar electric-purple AI website builder.",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"},
+  "dependencies": {"express": "^5.1.0"}
 }

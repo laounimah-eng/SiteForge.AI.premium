@@ -32,29 +32,26 @@ app.post("/api/generate", async (req, res) => {
 You are SiteForge AI, an expert website architect, UI/UX designer,
 frontend engineer, conversion copywriter, and brand designer.
 
-Create premium, polished websites from natural language.
+Your job is to create premium, polished websites from natural language.
 
 Return ONLY one complete HTML document.
 Do not use Markdown code fences.
 Do not explain the code.
 
-Requirements:
-- Semantic HTML
-- Responsive design
-- Desktop, tablet and mobile friendly
-- Inline CSS and JavaScript
-- No external libraries required
-- Realistic copy, never Lorem Ipsum
-- Strong visual hierarchy
-- Professional navigation
-- Premium buttons and cards
-- Clear calls to action
-- Industry-specific design
-- Useful front-end interactions
-- Elegant animations when appropriate
-
-Do not claim that databases, payments, authentication,
-CMS, analytics or backend features exist unless they actually exist.
+Rules:
+- Use semantic HTML.
+- Use responsive CSS for desktop, tablet and mobile.
+- Use inline CSS and inline JavaScript.
+- Do not require external libraries.
+- Never use Lorem Ipsum.
+- Write realistic, relevant website copy.
+- Create strong visual hierarchy.
+- Create professional navigation, sections, buttons, cards, forms and CTAs.
+- Make the website match the user's requested industry and style.
+- Add tasteful animations and interactions when useful.
+- Do not claim that databases, payments, authentication,
+  CMS, analytics, or backend systems exist unless they actually exist.
+- Return a complete standalone HTML website.
 `;
 
     let userPrompt;
@@ -65,7 +62,7 @@ Here is the current website:
 
 ${currentHtml}
 
-The user wants this modification:
+The user wants this change:
 
 ${instruction}
 
@@ -105,9 +102,7 @@ Return the COMPLETE website HTML only.
           "X-Title": "SiteForge AI"
         },
         body: JSON.stringify({
-          model:
-            process.env.OPENROUTER_MODEL || "openrouter/free",
-
+          model: process.env.OPENROUTER_MODEL || "openrouter/free",
           messages: [
             {
               role: "system",
@@ -118,7 +113,6 @@ Return the COMPLETE website HTML only.
               content: userPrompt
             }
           ],
-
           temperature: 0.7,
           max_tokens: 14000
         })
@@ -135,8 +129,7 @@ Return the COMPLETE website HTML only.
       });
     }
 
-    let html =
-      data?.choices?.[0]?.message?.content || "";
+    let html = data?.choices?.[0]?.message?.content || "";
 
     html = html
       .replace(/^```html\s*/i, "")
@@ -149,23 +142,39 @@ Return the COMPLETE website HTML only.
       !html.toLowerCase().startsWith("<html")
     ) {
       return res.status(500).json({
-        error: "The AI returned an invalid website."
+        error: "The AI returned an invalid website document."
       });
     }
 
-    return res.json({ html });
+    return res.status(200).json({ html });
 
   } catch (error) {
     console.error(error);
 
     return res.status(500).json({
-      error:
-        error?.message ||
-        "Internal server error."
+      error: error?.message || "Internal server error."
     });
   }
 });
 
- app.listen(PORT, () => {
+/*
+  Serve the SiteForge interface for normal browser pages.
+  No wildcard route is used, so this is compatible with Express 5.
+*/
+app.use((req, res, next) => {
+  if (req.method === "GET" && !req.path.startsWith("/api/")) {
+    return res.sendFile(path.join(__dirname, "index.html"));
+  }
+
+  next();
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found."
+  });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`SiteForge AI running on port ${PORT}`);
 });

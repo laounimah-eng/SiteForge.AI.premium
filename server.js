@@ -166,10 +166,6 @@ Return the COMPLETE website HTML only.
   }
 });
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.listen(PORT, () => {
+ app.listen(PORT, () => {
   console.log(`SiteForge AI running on port ${PORT}`);
 });

@@ -1,139 +1,34 @@
-const state = {
-  html: "",
-  projectName: "Untitled Website",
-  history: JSON.parse(localStorage.getItem("siteforge-history") || "[]"),
-  projects: JSON.parse(localStorage.getItem("siteforge-projects") || "[]")
-};
-
-const $ = id => document.getElementById(id);
-const brief = $("briefInput");
-const preview = $("sitePreview");
-const stage = $("previewStage");
-
-function toast(msg) {
-  const el = $("toast"); el.textContent = msg; el.classList.add("show");
-  clearTimeout(window.__toast); window.__toast = setTimeout(() => el.classList.remove("show"), 2600);
-}
-function addActivity(title, detail="") {
-  const list = $("activityList");
-  if (list.querySelector(".muted")) list.innerHTML = "";
-  const row = document.createElement("div"); row.className = "activity";
-  row.innerHTML = `<strong>${escapeHtml(title)}</strong>${detail ? `<br><span>${escapeHtml(detail)}</span>` : ""}`;
-  list.prepend(row);
-  state.history.unshift({title, detail, time: Date.now()});
-  state.history = state.history.slice(0, 12);
-  localStorage.setItem("siteforge-history", JSON.stringify(state.history));
-}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
-function setLoading(on) {
-  $("generateBtn").disabled = on;
-  $("generateBtn").innerHTML = on ? "✦ Forging your website…" : "<span>✦</span> Generate Website <b>⌘↵</b>";
-  $("previewStage").classList.toggle("loading", on);
-}
-function setSite(html, meta={}) {
-  state.html = html;
-  $("emptyPreview").style.display = "none";
-  stage.classList.add("has-site");
-  preview.srcdoc = html;
-  if(meta.projectName) {
-    state.projectName = meta.projectName;
-    $("projectName").textContent = meta.projectName;
-  }
-  $("pageCount").textContent = `${meta.pages || countPages(html)} pages`;
-  $("previewLabel").textContent = "Live generated website";
-  updateQuality(meta.quality || scoreLocal(html));
-}
-function countPages(html){ const m = html.match(/data-page=/g); return Math.max(1, m ? m.length : 1); }
-function scoreLocal(html) {
-  const checks = {
-    responsive: /@media|viewport/i.test(html),
-    cta: /call|contact|book|start|buy|shop|demo|get started|learn more/i.test(html),
-    copy: html.length > 3000 && !/lorem ipsum/i.test(html),
-    hierarchy: /<h1[\s>]|<h2[\s>]/i.test(html)
-  };
-  return {score: Math.round(Object.values(checks).filter(Boolean).length / 4 * 100), checks};
-}
-function updateQuality(q) {
-  const score = Math.max(0, Math.min(100, Number(q.score ?? 0)));
-  $("qualityScore").textContent = `${score}/100`;
-  $("qualityMini").textContent = `Quality ${score}`;
-  $("scoreRingText").textContent = score;
-  $("scoreCircle").style.strokeDashoffset = String(106.8 - (106.8 * score / 100));
-  const labels = [
-    ["responsive", "responsiveCheck", "responsiveIcon"],
-    ["cta", "ctaCheck", "ctaIcon"],
-    ["copy", "copyCheck", "copyIcon"],
-    ["hierarchy", "hierarchyCheck", "hierarchyIcon"]
-  ];
-  labels.forEach(([key, txt, icon]) => {
-    const ok = !!q.checks?.[key];
-    $(txt).textContent = ok ? "Looks good" : "Needs attention";
-    $(icon).textContent = ok ? "✓" : "!";
-    $(icon).parentElement.classList.toggle("ok", ok);
-  });
-}
-async function callAI(action, payload) {
-  const response = await fetch("/api/generate", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({action, ...payload})
-  });
-  const data = await response.json();
-  if(!response.ok) throw new Error(data.error || "AI request failed");
-  return data;
-}
-async function generateWebsite() {
-  const prompt = brief.value.trim();
-  if(!prompt){ toast("Describe the website you want first."); brief.focus(); return; }
-  setLoading(true);
-  try {
-    const data = await callAI("generate", {prompt});
-    setSite(data.html, data.meta);
-    addActivity("Website generated", `${data.meta?.pages || countPages(data.html)} pages · ${data.meta?.score || scoreLocal(data.html).score}/100 quality`);
-    saveProject();
-    toast("Website forged successfully.");
-  } catch(e) {
-    toast(e.message);
-  } finally { setLoading(false); }
-}
-async function editWebsite() {
-  const instruction = $("editInput").value.trim();
-  if(!instruction){ toast("Tell SiteForge what you want changed."); return; }
-  if(!state.html){ toast("Generate a website first."); return; }
-  $("editBtn").disabled = true; $("editBtn").textContent = "Applying…";
-  try {
-    const data = await callAI("edit", {html: state.html, instruction});
-    setSite(data.html, data.meta);
-    addActivity("Website updated", instruction);
-    saveProject();
-    $("editInput").value = "";
-    toast("Change applied without rebuilding your site from scratch.");
-  } catch(e){ toast(e.message); }
-  finally { $("editBtn").disabled = false; $("editBtn").innerHTML = "Apply change <span>↗</span>"; }
-}
-function saveProject(){
-  if(!state.html) return;
-  const project = {id: Date.now(), name: state.projectName, html: state.html, brief: brief.value, updated: new Date().toISOString()};
-  state.projects = state.projects.filter(p=>p.name!==state.projectName);
-  state.projects.unshift(project); state.projects = state.projects.slice(0,20);
-  localStorage.setItem("siteforge-projects", JSON.stringify(state.projects));
-}
-function downloadHTML(){
-  if(!state.html){toast("Generate a website before exporting.");return;}
-  const blob = new Blob([state.html], {type:"text/html;charset=utf-8"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(state.projectName||"siteforge-website").toLowerCase().replace(/[^a-z0-9]+/g,"-")+".html"; a.click(); URL.revokeObjectURL(a.href);
-  addActivity("Exported HTML","Standalone website downloaded.");
-  toast("Standalone HTML exported.");
-}
-$("generateBtn").onclick = generateWebsite;
-$("editBtn").onclick = editWebsite;
-$("exportBtn").onclick = downloadHTML;
-$("refreshPreview").onclick = () => { if(state.html) preview.srcdoc = state.html; };
-$("openPreview").onclick = () => { if(state.html) window.open(URL.createObjectURL(new Blob([state.html],{type:"text/html"})),"_blank"); };
-$("clearActivity").onclick = () => { $("activityList").innerHTML = '<div class="activity muted">Your generation history will appear here.</div>'; state.history=[]; localStorage.removeItem("siteforge-history"); };
-$("newProjectBtn").onclick = () => { state.html=""; brief.value=""; $("projectName").textContent="Untitled Website"; $("pageCount").textContent="0 pages"; $("qualityMini").textContent="Quality —"; stage.classList.remove("has-site"); $("emptyPreview").style.display="block"; preview.srcdoc=""; updateQuality({score:0,checks:{}}); toast("New website workspace ready."); };
-brief.addEventListener("keydown", e => { if((e.metaKey||e.ctrlKey)&&e.key==="Enter") generateWebsite(); });
-$("editInput").addEventListener("keydown", e => { if((e.metaKey||e.ctrlKey)&&e.key==="Enter") editWebsite(); });
-document.querySelectorAll(".prompt-chip").forEach(b=>b.onclick=()=>{brief.value=b.dataset.prompt;brief.focus();});
-document.querySelectorAll(".device").forEach(b=>b.onclick=()=>{document.querySelectorAll(".device").forEach(x=>x.classList.remove("active"));b.classList.add("active");stage.classList.remove("tablet","mobile");if(b.dataset.device!=="desktop")stage.classList.add(b.dataset.device);});
-window.addEventListener("beforeunload", saveProject);
+const NAV=[
+ ['dashboard','Dashboard','⌂'],['builder','AI Builder','✦'],['templates','Templates','▦'],['projects','Projects','▣'],['design','Design Studio','◈'],['assistant','AI Copilot','✧'],['domains','Domains','◎'],['hosting','Hosting','▤'],['analytics','Analytics','◒'],['team','Team','♧'],['integrations','Integrations','⌘'],['settings','Settings','⚙'],['billing','Billing','◇']
+];
+const state=Object.assign({page:'dashboard',prompt:'',html:'',projects:[],history:[],device:'desktop',lastCheck:null,seo:null,theme:'lunar',toast:null,activeTemplate:'All',chat:[]},JSON.parse(localStorage.getItem('siteforge_v4')||'{}'));
+const themes={lunar:['#8B3DFF','#C26BFF','#090712'],violet:['#6D28D9','#A855F7','#080611'],ultraviolet:['#4C1D95','#E879F9','#07040C'],ice:['#7C3AED','#E9D5FF','#0A0910']};
+function save(){localStorage.setItem('siteforge_v4',JSON.stringify(state));}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(msg){state.toast=msg;save();render();setTimeout(()=>{state.toast=null;render()},2400)}
+function icon(x){return `<span class="ico">${x}</span>`}
+function shell(content){return `<div class="app"><aside class="sidebar"><div class="brand"><div class="brandmark">✦</div><div class="brandtext">SITEFORGE <b>AI</b><small>LUNAR STUDIO</small></div></div><button class="newbtn" data-action="newproject">＋ <span>New Website</span><kbd>⌘ N</kbd></button><nav>${NAV.map(([id,label,i])=>`<button class="navitem ${state.page===id?'active':''}" data-page="${id}">${icon(i)}<span>${label}</span>${id==='design'?'<em>NEW</em>':''}</button>`).join('')}</nav><div class="sidegrow"></div><div class="procard"><span>PRO WORKSPACE</span><strong>Build without limits.</strong><p>AI generation, live preview, quality control and export.</p><button data-page="billing">Explore Pro →</button></div><div class="profile"><div class="avatar">SF</div><div><b>My Workspace</b><small>Free plan</small></div><span>•••</span></div></aside><main class="main"><header class="topbar"><div class="crumb"><span>Workspace</span><b>/</b><strong>${esc(state.page==='builder'?'Untitled Website':titleCase(state.page))}</strong><i>● Saved</i></div><div class="topactions"><button class="ghost" data-action="theme">◐</button><button class="ghost" data-action="help">?</button><button class="share" data-action="share">Share ↗</button><button class="export" data-action="export">Export ↓</button></div></header>${content}</main>${state.toast?`<div class="toast">${esc(state.toast)}</div>`:''}</div>`}
+function titleCase(s){return s.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function dashboard(){return shell(`<section class="page content"><div class="hero"><div class="heroMoon"></div><div class="heroCopy"><div class="eyebrow">✦ THE AI WEBSITE STUDIO</div><h1>From idea to <span>exceptional.</span></h1><p>Describe what you want. SiteForge architects the strategy, designs the interface, writes the experience, and forges a complete website in seconds.</p><div class="heroPrompt"><textarea id="heroPrompt" placeholder="Tell SiteForge what you want to build…">${esc(state.prompt)}</textarea><button class="primary" data-action="generate">✦ Forge Website <b>→</b></button></div><div class="chips">${['Luxury Real Estate','SaaS','E-commerce','Agency','Portfolio','Restaurant'].map(x=>`<button class="chip" data-prompt="${x}">${x}</button>`).join('')}</div></div><div class="engine"><span class="pulse"></span><small>AI ENGINE</small><b>${state.html?'Ready to improve':'Ready to forge'}</b></div></div><div class="dashboardGrid"><div><section class="panel projectPanel"><div class="panelHead"><div><span class="eyebrow">WORKSPACE</span><h2>Recent projects</h2></div><button class="secondary" data-page="projects">View all →</button></div><div class="projectGrid">${projectCards()}</div></section><section class="panel featurePanel"><div class="panelHead"><div><span class="eyebrow">POWER TOOLS</span><h2>Everything to ship better</h2></div><button class="secondary" data-page="builder">Open Studio →</button></div><div class="featureGrid">${[['✦','AI Architect','Turn a brief into a complete website.','builder'],['◈','Smart Editing','Change any section with natural language.','assistant'],['✓','Production Ready','Scan structure, accessibility and risky placeholders.','builder'],['◎','SEO Optimizer','Generate titles, descriptions and metadata.','builder'],['↗','Export & Ship','Download a standalone website package.','builder'],['◇','No Fake Data','Unknown business facts stay clearly marked.','assistant']].map(x=>`<button class="featureCard" data-page="${x[3]}"><span>${x[0]}</span><b>${x[1]}</b><p>${x[2]}</p><i>→</i></button>`).join('')}</div></section></div><aside><section class="panel scorePanel"><div class="panelHead"><div><span class="eyebrow">QUALITY</span><h2>Website health</h2></div></div><div class="scoreWrap"><div class="scoreRing" style="--score:${state.lastCheck?.score||0}%"><strong>${state.lastCheck?.score||'—'}</strong><small>/ 100</small></div><div class="checks"><div><span>Design quality</span><b>${state.lastCheck?'✓':'○'}</b></div><div><span>Accessibility</span><b>${state.lastCheck?'✓':'○'}</b></div><div><span>SEO readiness</span><b>${state.seo?'✓':'○'}</b></div><div><span>Production scan</span><b>${state.lastCheck?'✓':'○'}</b></div></div></div><button class="primary wide" data-page="builder">Open Production Studio →</button></section><section class="panel lunarCard"><div class="moonSmall"></div><span class="eyebrow">LUNAR MODE</span><h2>Design in the dark. Ship in the light.</h2><p>Electric purple accents, cinematic depth and a calm workspace built for focused creation.</p><button class="secondary" data-page="design">Customize look →</button></section></aside></div></section>`)}
+function projectCards(){if(!state.projects.length)return `<button class="projectCard newProject" data-action="newproject"><div class="projectVisual"><span>＋</span></div><div><b>Create your first website</b><small>Start with a prompt or template</small></div></button><div class="projectCard demo"><div class="projectVisual"><span>ROYAL<br>ESTATES</span></div><div><b>Demo / Royal Estates</b><small>Example project • ready to replace</small></div></div><div class="projectCard demo"><div class="projectVisual purple"><span>SAAS<br>LAUNCH</span></div><div><b>Demo / SaaS Launch</b><small>Example project • concept</small></div></div>`;return state.projects.slice(-3).reverse().map(p=>`<button class="projectCard" data-action="load" data-id="${esc(p.id)}"><div class="projectVisual ${p.id%2?'purple':''}"><span>${esc((p.name||'PROJECT').slice(0,22))}</span></div><div><b>${esc(p.name)}</b><small>${esc(p.meta||'Saved project')}</small></div></button>`).join('')}
+function builder(){return shell(`<div class="studio"><aside class="studioLeft"><div class="studioHead"><button class="mini" data-page="dashboard">←</button><b>Studio</b><span>Saved</span></div><div class="studioSection"><small>BUILD</small><button class="studioTool active">▣ Pages</button><button class="studioTool">▦ Sections</button><button class="studioTool">◇ Components</button></div><div class="studioSection"><small>DESIGN</small><button class="studioTool">◈ Themes</button><button class="studioTool">Aa Typography</button><button class="studioTool">◉ Colors</button><button class="studioTool">✦ Motion</button></div><div class="studioSection"><small>GROWTH</small><button class="studioTool" data-action="seo">◎ SEO</button><button class="studioTool" data-action="quality">✓ Production Check</button></div><div class="briefBox"><label>Website brief</label><textarea id="builderBrief" placeholder="Describe or rebuild the website…">${esc(state.prompt)}</textarea><button class="primary wide" data-action="generate-builder">Forge / Rebuild</button></div></aside><main class="studioCanvas"><div class="canvasToolbar"><div class="deviceTabs">${['desktop','tablet','mobile'].map(d=>`<button class="${state.device===d?'active':''}" data-device="${d}">${d[0].toUpperCase()+d.slice(1)}</button>`).join('')}</div><div class="canvasActions"><button data-action="quality">✓ Check</button><button data-action="seo">◎ SEO</button><button data-action="export">Export</button><button class="primary" data-action="publish">Publish ↗</button></div></div><div class="previewFrame ${state.device}">${state.html?`<iframe id="liveFrame" sandbox="allow-scripts allow-forms allow-modals" title="Live generated website"></iframe>`:`<div class="emptyPreview"><div class="emptyMoon">◐</div><h2>Your website will appear here.</h2><p>Describe a business, product or idea and SiteForge will build the first version.</p><button class="primary" data-action="generate">Forge a demo website →</button></div>`}</div><div class="editBar"><div class="sparkAvatar">✦</div><input id="editInput" placeholder="Ask SiteForge to change anything…"/><button class="ghost" data-action="quality">Check</button><button class="primary" data-action="edit">Apply →</button></div></main><aside class="studioRight"><div class="copilotHead"><b>AI Copilot</b><span class="status"><i></i>${state.html?'Live':'Ready'}</span></div><div class="copilotActions">${[['✦','Improve Design','Make the visual system more premium.'],['✎','Rewrite Content','Make copy clearer and more persuasive.'],['＋','Add Section','Add a useful conversion-focused section.'],['◎','Optimize SEO','Improve titles and metadata.'],['✓','Production Check','Scan for issues before shipping.']].map((x,i)=>`<button data-copilot="${i}"><span>${x[0]}</span><div><b>${x[1]}</b><small>${x[2]}</small></div>→</button>`).join('')}</div><div class="rightPanel"><label>Website score</label><div class="bigScore"><strong>${state.lastCheck?.score||'—'}</strong><small>/100</small></div><div class="miniChecks"><span>✓ Content quality</span><span>✓ Responsive layout</span><span>${state.seo?'✓':'○'} SEO optimization</span><span>${state.lastCheck?'✓':'○'} Production scan</span></div><button class="secondary wide" data-action="quality">Run full check</button></div><div class="rightPanel"><label>Quick settings</label><div class="setting"><span>Theme</span><b>Lunar Purple</b></div><div class="setting"><span>Typography</span><b>Balanced</b></div><div class="setting"><span>Mode</span><b>Premium</b></div></div></aside></div>`)}
+function templates(){const items=[['Lunar SaaS','SaaS','Dark, conversion-focused product landing page.'],['Noir Agency','Agency','Editorial agency site with cinematic depth.'],['Royal Estate','Real Estate','Luxury property experience with strong CTAs.'],['Pulse Commerce','E-commerce','Premium storefront with product hierarchy.'],['Moon Portfolio','Portfolio','Personal portfolio with bold case studies.'],['Velvet Dining','Restaurant','Elegant restaurant website with booking CTA.']];const cats=['All','SaaS','Agency','Real Estate','E-commerce','Portfolio','Restaurant'];return shell(`<section class="page content"><div class="pageIntro"><div><span class="eyebrow">CURATED STARTING POINTS</span><h1>Templates that feel custom.</h1><p>Start from a strong structure, then let AI make it yours.</p></div><button class="primary" data-action="newproject">＋ New Website</button></div><div class="filters">${cats.map(c=>`<button class="${state.activeTemplate===c?'active':''}" data-filter="${c}">${c}</button>`).join('')}</div><div class="templateBigGrid">${items.filter(x=>state.activeTemplate==='All'||x[1]===state.activeTemplate).map((x,i)=>`<article class="templateBig"><div class="templateVisual ${i%3===1?'purple':''}"><div class="templateMoon"></div><b>${x[0]}</b><small>${x[1]}</small></div><div class="templateBody"><h3>${x[0]}</h3><p>${x[2]}</p><div><button class="secondary" data-use-template="${esc(x[0])}">Use template</button><button class="ghost">Preview</button></div></div></article>`).join('')}</div></section>`)}
+function projects(){return shell(`<section class="page content"><div class="pageIntro"><div><span class="eyebrow">WORKSPACE</span><h1>Your projects.</h1><p>Every generated website, saved locally until you export or publish it.</p></div><button class="primary" data-action="newproject">＋ New Website</button></div><div class="stats"><div><small>Projects</small><b>${state.projects.length}</b></div><div><small>Generations</small><b>${state.history.length}</b></div><div><small>Quality checks</small><b>${state.lastCheck?'1+':'0'}</b></div><div><small>SEO scans</small><b>${state.seo?'1+':'0'}</b></div></div><div class="table"><div class="row head"><span>Project</span><span>Status</span><span>Updated</span><span>Action</span></div>${(state.projects.length?state.projects:[{id:'demo',name:'Royal Estates Demo',meta:'Demo project'}]).map(p=>`<div class="row"><span><b>${esc(p.name)}</b><small>${esc(p.meta||'Saved project')}</small></span><span><em class="badge">${p.id==='demo'?'Demo':'Saved'}</em></span><span>Just now</span><span><button class="ghost" data-action="load" data-id="${esc(p.id)}">Open</button></span></div>`).join('')}</div></section>`)}
+function design(){return shell(`<section class="page content"><div class="pageIntro"><div><span class="eyebrow">DESIGN SYSTEM</span><h1>Lunar Electric Purple.</h1><p>Calm black surfaces, luminous violet accents and readable typography.</p></div><button class="primary" data-action="save-design">Save design</button></div><div class="designGrid"><section class="panel"><span class="eyebrow">COLOR SYSTEM</span><h2>Choose your atmosphere</h2><div class="palette">${Object.entries(themes).map(([k,v])=>`<button class="paletteCard ${state.theme===k?'active':''}" data-theme="${k}"><div style="background:linear-gradient(135deg,${v[2]},${v[0]})"><i style="background:${v[0]}"></i><i style="background:${v[1]}"></i></div><b>${titleCase(k)}</b><small>${v.join(' · ')}</small></button>`).join('')}</div><div class="designDemo"><div class="demoNav"><b>✦ SITEFORGE</b><span>Builder</span><span>Templates</span><span>Projects</span><button class="primary">Start building</button></div><div class="demoHero"><div><span class="eyebrow">THE AI WEBSITE STUDIO</span><h2>Big ideas.<br><span>Beautifully forged.</span></h2><p>Readable 16px body copy, controlled contrast and cinematic depth.</p><button class="primary">Create website →</button></div><div class="demoMoon"></div></div></div></section><aside class="panel"><span class="eyebrow">TYPE SCALE</span><h2>Balanced typography.</h2><div class="typeSample"><h1>Headline</h1><h3>Section title</h3><p>Body text should be comfortable to read, never tiny and never oversized.</p><small>12–13px utility text</small></div><hr><span class="eyebrow">UI RULES</span><ul class="rules"><li>16px base body text</li><li>13–15px normal UI</li><li>Clear focus states</li><li>Strong contrast</li><li>Generous spacing</li></ul></aside></div></section>`)}
+function assistant(){return shell(`<section class="page content"><div class="pageIntro"><div><span class="eyebrow">AI COPILOT</span><h1>Tell it what to change.</h1><p>Use plain language to improve the current website without rebuilding everything.</p></div></div><div class="assistantGrid"><section class="panel chatPanel"><div class="chatMessages">${(state.chat.length?state.chat:[{role:'ai',text:state.html?'Your latest website is loaded. Ask for a stronger hero, better copy, a new section, or a production check.':'I’m ready. Tell me what kind of website you want to build.'}]).map(m=>`<div class="bubble ${m.role}">${esc(m.text)}</div>`).join('')}</div><div class="chatInput"><textarea id="chatInput" placeholder="Example: Make the hero more cinematic and add a clear CTA."></textarea><button class="primary" data-action="chat-send">Send →</button></div></section><aside class="panel"><span class="eyebrow">SUGGESTIONS</span><h2>Try these.</h2><div class="suggestions">${['Make the hero more premium','Add a pricing section','Rewrite the CTA','Improve mobile layout','Run a production check','Optimize SEO'].map(x=>`<button data-suggestion="${x}">${x} →</button>`).join('')}</div></aside></div></section>`)}
+function generic(page){const data={domains:['Domains','Connect a custom domain after you export or publish your site.'],hosting:['Hosting','Your Railway deployment is separate from the generated website. Keep deployment credentials server-side.'],analytics:['Analytics','Add analytics after launch. SiteForge does not pretend tracking is active until you connect it.'],team:['Team','Invite collaborators later. This workspace keeps the UI ready for team workflows.'],integrations:['Integrations','Connect email, forms, payments or CRM through real integrations when you are ready.'],billing:['Billing','Premium plan controls can live here. No payment system is falsely claimed as connected.'],settings:['Settings','Workspace preferences, AI model and safety rules.']}[page];return shell(`<section class="page content"><div class="pageIntro"><div><span class="eyebrow">WORKSPACE</span><h1>${data[0]}</h1><p>${data[1]}</p></div></div><div class="settingsGrid"><section class="panel"><div class="largeIcon">✦</div><h2>${page==='settings'?'Keep SiteForge predictable.':'Ready when you are.'}</h2><p>SiteForge separates the AI builder from real external services. This keeps your generated websites honest and your deployment credentials secure.</p><div class="settingRows"><div><span>Status</span><b class="green">Available</b></div><div><span>AI key</span><b>${location.protocol==='file:'?'Not applicable':'Server-side only'}</b></div><div><span>Workspace storage</span><b>Local browser</b></div></div></section><aside class="panel"><span class="eyebrow">NEXT STEP</span><h2>Build something.</h2><button class="primary wide" data-page="builder">Open AI Builder →</button><button class="secondary wide" data-page="templates">Browse templates</button></aside></div></section>`)}
+function settings(){return generic('settings')}
+async function api(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Request failed.');return d}
+function setFrame(){const f=document.getElementById('liveFrame');if(f&&state.html){f.srcdoc=state.html;f.style.width=state.device==='mobile'?'390px':state.device==='tablet'?'768px':'100%';f.style.height='780px';}}
+async function generate(prompt){if(!prompt.trim())return toast('Describe the website first.');state.prompt=prompt;save();toast('SiteForge is forging your website…');try{const d=await api('/api/generate',{prompt});state.html=d.html;state.history.push({at:Date.now(),type:'generate',prompt});state.projects.push({id:Date.now(),name:prompt.split(/\s+/).slice(0,4).join(' '),meta:'AI generated • saved locally',html:d.html});save();state.page='builder';render();setTimeout(setFrame,50);toast('Website forged successfully.');}catch(e){toast(e.message)}}
+async function edit(instruction){if(!state.html)return toast('Generate a website first.');if(!instruction.trim())return toast('Tell SiteForge what to change.');toast('Applying your change…');try{const d=await api('/api/generate',{mode:'edit',currentHtml:state.html,instruction});state.html=d.html;state.history.push({at:Date.now(),type:'edit',instruction});save();render();setTimeout(setFrame,50);toast('Change applied.');}catch(e){toast(e.message)}}
+async function quality(){if(!state.html)return toast('Generate a website first.');toast('Running production check…');try{const d=await api('/api/quality-check',{html:state.html});state.lastCheck=d.result;save();render();toast(`Production score: ${d.result.score}/100`);}catch(e){toast(e.message)}}
+async function seo(){if(!state.html)return toast('Generate a website first.');toast('Optimizing SEO…');try{const d=await api('/api/seo',{html:state.html});state.seo=d.result;save();render();toast('SEO recommendations ready.');}catch(e){toast(e.message)}}
+function download(){if(!state.html)return toast('Generate a website first.');const blob=new Blob([state.html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='siteforge-website.html';a.click();URL.revokeObjectURL(a.href);toast('HTML exported.');}
+function publish(){toast('Export is ready. Deploy the exported file to your hosting provider, or connect your GitHub/Railway workflow.');}
+function newProject(){state.prompt='';state.html='';state.lastCheck=null;state.seo=null;state.chat=[];state.page='builder';save();render();}
+function loadProject(id){const p=state.projects.find(x=>String(x.id)===String(id));if(!p)return;state.html=p.html;state.prompt=p.name;state.page='builder';save();render();setTimeout(setFrame,50)}
+function share(){if(!state.html)return toast('Generate a website first.');navigator.clipboard?.writeText(state.html).then(()=>toast('Website HTML copied.'))}
+function render(){document.documentElement.style.setProperty('--accent',themes[state.theme][0]);document.documentElement.style.setProperty('--accent2',themes[state.theme][1]);const p=state.page;let out=p==='dashboard'?dashboard():p==='builder'?builder():p==='templates'?templates():p==='projects'?projects():p==='design'?design():p==='assistant'?assistant():p==='settings'?settings():generic(p);document.getElementById('app').innerHTML=out;bind();setFrame();}
+function bind(){document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page;save();render()});document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{state.prompt=`Build a premium ${b.dataset.prompt} website with a strong hero, clear CTA, polished sections, responsive navigation, testimonials or proof where appropriate, FAQ, contact section and a production-ready visual system.`;const el=document.getElementById('heroPrompt')||document.getElementById('builderBrief');if(el)el.value=state.prompt;});document.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{state.device=b.dataset.device;save();render()});document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.activeTemplate=b.dataset.filter;save();render()});document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{state.theme=b.dataset.theme;save();render()});document.querySelectorAll('[data-use-template]').forEach(b=>b.onclick=()=>{state.prompt=`Build a website based on the ${b.dataset.useTemplate} template. Make it premium, original, conversion-focused, responsive and production-minded. Use placeholders for missing business facts.`;state.page='builder';save();render();});document.querySelectorAll('[data-suggestion]').forEach(b=>b.onclick=()=>{const i=document.getElementById('chatInput');if(i)i.value=b.dataset.suggestion});document.querySelectorAll('[data-copilot]').forEach(b=>b.onclick=()=>{const actions=['Make the design more premium, cinematic and visually consistent.','Rewrite the website copy to be clearer, more persuasive and concise.','Add a useful conversion-focused section that fits the existing website.','Optimize the website SEO and metadata.','Run a full production quality check.'];const a=actions[Number(b.dataset.copilot)];if(Number(b.dataset.copilot)===3)return seo();if(Number(b.dataset.copilot)===4)return quality();state.page='assistant';state.chat.push({role:'user',text:a});save();render();const i=document.getElementById('chatInput');if(i)i.value=a});document.querySelectorAll('[data-action]').forEach(b=>b.onclick=async()=>{const a=b.dataset.action;if(a==='generate')await generate(document.getElementById('heroPrompt')?.value||state.prompt);if(a==='generate-builder')await generate(document.getElementById('builderBrief')?.value||state.prompt);if(a==='edit')await edit(document.getElementById('editInput')?.value||'');if(a==='quality')await quality();if(a==='seo')await seo();if(a==='export')download();if(a==='publish')publish();if(a==='newproject')newProject();if(a==='load')loadProject(b.dataset.id);if(a==='theme'){state.theme=state.theme==='lunar'?'violet':'lunar';save();render();}if(a==='save-design')toast('Lunar design saved.');if(a==='share')share();if(a==='help')toast('Tip: describe the result, not the code. SiteForge handles structure and styling.');if(a==='gift')toast('Pro features: more generations, projects and deployment workflow.');if(a==='notify')toast('No new notifications.');if(a==='chat-send'){const i=document.getElementById('chatInput');if(i?.value.trim()){state.chat.push({role:'user',text:i.value.trim()});save();render();await edit(i.value.trim());state.page='assistant';save();render();}}});const hero=document.getElementById('heroPrompt');if(hero)hero.addEventListener('input',()=>{state.prompt=hero.value;save()});const brief=document.getElementById('builderBrief');if(brief)brief.addEventListener('input',()=>{state.prompt=brief.value;save()});}
+render();

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "functions": {
+    "api/generate.js": {
+      "maxDuration": 60
+    }
+  }
+}

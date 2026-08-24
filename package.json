@@ -1,0 +1,20 @@
+{
+  "name": "siteforge-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SiteForge AI — premium AI website builder powered by OpenRouter",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.3.0"
+  },
+  "devDependencies": {
+    "vercel": "^48.0.0"
+  }
+}

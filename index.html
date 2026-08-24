@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SiteForge AI™ — Premium Website Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="noise"></div>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="logo-orb"><span>✦</span></div><div class="brand-name">SITEFORGE <i>AI™</i></div></div>
+  <button class="new-site" id="newProjectBtn"><span>＋</span><strong>New Website</strong><kbd>⌘ N</kbd></button>
+  <div class="nav-label">CREATE</div>
+  <nav>
+    <a class="active" href="#builder"><b>⌂</b> Builder <em>⌘1</em></a>
+    <a href="#templates"><b>✦</b> Templates</a>
+    <a href="#projects"><b>▣</b> Projects</a>
+    <a href="#brand"><b>◉</b> Brand Kit</a>
+  </nav>
+  <div class="sidebar-divider"></div>
+  <div class="nav-label">WORKSPACE</div>
+  <div class="mini-nav"><button><span>⌁</span> Activity</button><button><span>?</span> Help center</button></div>
+  <div class="sidebar-spacer"></div>
+  <div class="upgrade-card">
+    <div class="upgrade-shine"></div><span class="tiny-gold">SITEFORGE PRO</span>
+    <h3>Build without limits.</h3><p>Unlimited projects, AI generations and premium exports.</p>
+    <button>Explore Pro <span>→</span></button>
+  </div>
+  <div class="account"><div class="avatar">SF</div><div><strong>My Workspace</strong><small>Free plan</small></div><button>•••</button></div>
+</aside>
+
+<main class="main">
+<header class="topbar">
+  <div class="breadcrumbs"><span>Workspace</span><i>/</i><strong id="projectName">Untitled Website</strong><span class="saved"><i></i> Saved</span></div>
+  <div class="top-actions"><button class="top-icon">⌘</button><button class="top-icon">⚙</button><button class="share">Share ↗</button><button class="export" id="exportBtn">Export <span>↓</span></button></div>
+</header>
+
+<section class="hero" id="builder">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="eyebrow-line"></span> THE AI WEB DESIGN STUDIO</div>
+    <h1>From idea to <span>exceptional.</span></h1>
+    <p>Describe what you want. SiteForge architects the strategy, designs the interface, writes the experience and forges a complete website in seconds.</p>
+  </div>
+  <div class="hero-stat"><div class="stat-ring">✦</div><div><strong>AI ENGINE</strong><small>Ready to forge</small></div></div>
+</section>
+
+<section class="brief-wrap">
+  <div class="brief-card">
+    <div class="brief-head"><div class="prompt-title"><span class="spark">✦</span><strong>What are we building?</strong><small>Tell SiteForge anything.</small></div><div class="brief-tools"><button>＋ Attach</button><button>⌘</button></div></div>
+    <textarea id="briefInput" placeholder="Create a luxury black-and-gold website for an AI automation agency called Nexora. Target ambitious startups. Include Home, Services, Work, Pricing, About and Contact. Make it futuristic, premium and highly conversion-focused."></textarea>
+    <div class="brief-bottom">
+      <div class="quick-prompts"><span>Try:</span><button class="prompt-chip" data-prompt="Create a premium SaaS website with features, pricing, testimonials, integrations, FAQ and free-trial CTA.">SaaS</button><button class="prompt-chip" data-prompt="Create a luxury restaurant website with menu, story, reservations, gallery, testimonials and contact.">Restaurant</button><button class="prompt-chip" data-prompt="Create a premium real estate website with featured properties, listings, agents, testimonials and contact.">Real Estate</button><button class="prompt-chip" data-prompt="Create a bold creative agency website with services, selected work, process, testimonials, about and contact.">Agency</button></div>
+      <button class="forge" id="generateBtn"><span>✦</span> Forge Website <kbd>⌘ ↵</kbd></button>
+    </div>
+  </div>
+</section>
+
+<section class="workspace">
+  <div class="preview-column">
+    <div class="workspace-toolbar">
+      <div class="toolbar-title"><span class="live-dot"></span><div><strong>Live canvas</strong><small id="previewLabel">Your generated website will appear here</small></div></div>
+      <div class="devices"><button class="device active" data-device="desktop">▰</button><button class="device" data-device="tablet">▯</button><button class="device" data-device="mobile">▯</button></div>
+      <div class="canvas-actions"><button id="refreshPreview">↻</button><button id="openPreview">↗</button><button>•••</button></div>
+    </div>
+    <div class="browser">
+      <div class="browser-top"><div class="browser-dots"><i></i><i></i><i></i></div><div class="browser-address"><span>◉</span> siteforge.local / preview</div><div class="browser-lock">⌁</div></div>
+      <div class="canvas" id="previewStage">
+        <div class="empty" id="emptyPreview"><div class="empty-mark">✦</div><div class="empty-kicker">LIVE WEBSITE CANVAS</div><h2>Your website is waiting<br><em>to be forged.</em></h2><p>Give SiteForge a brief above and watch your complete experience come to life here.</p><div class="empty-pills"><span>AI Architecture</span><span>Premium UI</span><span>Responsive</span></div></div>
+        <iframe id="sitePreview" title="Generated website preview" sandbox="allow-scripts allow-forms"></iframe>
+      </div>
+      <div class="canvas-footer"><span><i></i> Live rendering</span><span id="pageCount">0 pages</span><span>100% responsive</span></div>
+    </div>
+  </div>
+
+  <aside class="inspector">
+    <div class="inspector-top"><div><span class="tiny-gold">AI COPILOT</span><h2>Creative control</h2></div><button class="collapse">‹</button></div>
+    <div class="quality">
+      <div><span>WEBSITE QUALITY</span><strong id="qualityScore">—</strong><small id="qualityMini">Waiting for your website</small></div>
+      <div class="quality-ring"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17"></circle><circle id="scoreCircle" cx="22" cy="22" r="17"></circle></svg><b id="scoreRingText">—</b></div>
+    </div>
+    <div class="inspector-section"><div class="section-label">QUALITY CHECKS <span>4</span></div>
+      <div class="check"><span class="check-icon">↗</span><div><strong>Conversion structure</strong><small id="ctaCheck">Waiting for website</small></div><b id="ctaIcon">—</b></div>
+      <div class="check"><span class="check-icon">⌁</span><div><strong>Responsive foundation</strong><small id="responsiveCheck">Waiting for website</small></div><b id="responsiveIcon">—</b></div>
+      <div class="check"><span class="check-icon">Aa</span><div><strong>Copy & messaging</strong><small id="copyCheck">Waiting for website</small></div><b id="copyIcon">—</b></div>
+      <div class="check"><span class="check-icon">◇</span><div><strong>Visual hierarchy</strong><small id="hierarchyCheck">Waiting for website</small></div><b id="hierarchyIcon">—</b></div>
+    </div>
+    <div class="inspector-section">
+      <div class="section-label">SITE SYSTEM</div>
+      <div class="system-grid"><div><span>TYPE</span><strong>Modern Sans</strong></div><div><span>PALETTE</span><strong><i class="swatch"></i> Luxury</strong></div><div><span>SPACING</span><strong>Relaxed</strong></div><div><span>STYLE</span><strong>Premium</strong></div></div>
+    </div>
+    <div class="inspector-section">
+      <div class="section-label">CAPABILITIES</div>
+      <div class="capabilities"><span>AI Architect</span><span>UI Designer</span><span>Copywriter</span><span>Frontend</span><span>Responsive</span></div>
+    </div>
+    <div class="activity"><div class="section-label">RECENT ACTIVITY <button id="clearActivity">Clear</button></div><div id="activityList"><div class="activity-empty">Your build history will appear here.</div></div></div>
+  </aside>
+</section>
+
+<section class="edit-bar">
+  <div class="edit-symbol">✦</div><div class="edit-title"><strong>Ask SiteForge</strong><small>Change anything, naturally.</small></div>
+  <input id="editInput" placeholder="Make the hero more luxurious, add testimonials, rewrite the CTA…">
+  <button id="editBtn">Apply <span>↗</span></button>
+</section>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="./app.js"></script>
+</body></html>
